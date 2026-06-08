@@ -17,13 +17,20 @@ infrastructure unless asked.
 ## Architecture
 
 ```
-Browser (frontend.jsx, React)
-      │  HTTP → localhost:5050
+Browser (index.html, React via CDN)
+      │  served by Flask at /  ·  calls /api/* on same origin
 Flask API (server.py)
       │
 Pipeline:  yt-dlp (if URL) → ffmpeg (→ 44.1kHz WAV) → Demucs (→ stems) → ffmpeg (→ MP3 320k)
 ```
 
+- The frontend is a **single self-contained `index.html`** (React + Babel loaded
+  from a CDN, no build step). Flask serves it at `/`. The UI calls the API on the
+  same origin (`window.location.origin + "/api"`), so there's only one server and
+  one port.
+- `frontend.jsx` is the original JSX source kept for reference / future Vite build.
+  The live UI is `index.html`; if you edit the UI, edit `index.html` (and keep
+  `frontend.jsx` in sync if you care about the source-of-truth copy).
 - The backend is **job-based and async**. Each request creates a `job_id`; the
   frontend polls `/api/status/<job_id>` until status is `done` or `error`.
 - Jobs are tracked in an in-memory dict (`jobs`) guarded by a lock. There is **no
@@ -35,14 +42,17 @@ Pipeline:  yt-dlp (if URL) → ffmpeg (→ 44.1kHz WAV) → Demucs (→ stems) �
 
 | File | Purpose |
 |------|---------|
-| `server.py` | Flask backend. All routes, the processing pipeline, job state. |
-| `frontend.jsx` | Single-file React UI (drag-drop, URL input, progress, stem download cards). |
+| `server.py` | Flask backend. Serves the UI at `/`, all `/api/*` routes, the pipeline, job state. |
+| `index.html` | Self-contained React UI (CDN React/Babel, inline styles). **This is the live frontend.** |
+| `frontend.jsx` | Original JSX source of the UI (reference / future build). |
 | `setup_and_run.sh` | Installs Python deps, checks for ffmpeg, starts the server. |
 | `README.md` | User-facing docs and API reference. |
 | `.gitignore` | Excludes model cache, temp media, Python/Node artifacts. |
 
 ## API surface (defined in server.py)
 
+- `GET  /` — serves `index.html` (the UI)
+- `GET  /favicon.ico` — returns 204 (UI uses an inline SVG favicon)
 - `POST /api/upload` — multipart file upload → `{ job_id }`
 - `POST /api/from-url` — `{ url }` (YouTube or direct media) → `{ job_id }`
 - `GET  /api/status/<job_id>` — poll job progress/status/stems
@@ -56,18 +66,19 @@ Status values: `queued → downloading → converting → separating → done` (
 
 - `MODEL = "htdemucs"` — switch to `"htdemucs_6s"` for 6 stems (adds guitar, piano).
 - `WORK_DIR` — temp file location.
+- `BASE_DIR` — where `index.html` is served from (the repo dir).
 - Port `5050` — set in `app.run(...)`.
 
 ## Running locally
 
 ```bash
 pip install demucs yt-dlp flask flask-cors   # ffmpeg must be installed on the system
-python3 server.py                            # → http://localhost:5050
+python3 server.py                            # → open http://localhost:5050
 ```
 
 First run downloads the Demucs model (~1 GB) and caches it under `~/.cache/torch/`.
-The frontend (`frontend.jsx`) can be dropped into any Vite/React project, or run
-via the standalone setup; it expects the API at `http://localhost:5050/api`.
+Open `http://localhost:5050` in a browser — Flask serves both the UI and the API,
+so there's nothing else to start.
 
 ## Conventions & gotchas
 

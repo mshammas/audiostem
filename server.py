@@ -16,11 +16,14 @@ import tempfile
 import glob
 import logging
 from pathlib import Path
-from flask import Flask, request, jsonify, send_file, abort
+from flask import Flask, request, jsonify, send_file, abort, send_from_directory, Response
 from flask_cors import CORS
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Directory containing this file (where index.html lives)
+BASE_DIR = Path(__file__).resolve().parent
 
 app = Flask(__name__)
 CORS(app)
@@ -198,6 +201,18 @@ def run_pipeline(job_id: str, source_path: Path, original_name: str):
 # ─────────────────────────────────────────────
 # Routes
 # ─────────────────────────────────────────────
+
+@app.route("/", methods=["GET"])
+def index():
+    """Serve the single-page frontend."""
+    return send_from_directory(BASE_DIR, "index.html")
+
+
+@app.route("/favicon.ico", methods=["GET"])
+def favicon():
+    # Frontend uses an inline SVG favicon; return empty to avoid 404 noise.
+    return Response(status=204)
+
 
 @app.route("/api/health", methods=["GET"])
 def health():

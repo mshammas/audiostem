@@ -18,12 +18,13 @@ Split any audio or video into isolated stems — **vocals, drums, bass, and othe
 
 ```
 ┌─────────────────────────────────┐
-│   React Frontend (frontend.jsx) │  ← drag-drop UI, progress, download
-│   runs in browser               │
+│   Frontend (index.html)         │  ← drag-drop UI, progress, download
+│   served by Flask at /          │     (React via CDN, no build step)
 └────────────┬────────────────────┘
              │ HTTP (localhost:5050)
 ┌────────────▼────────────────────┐
 │   Flask API (server.py)         │
+│   /              ← serves UI    │
 │   /api/upload    ← file upload  │
 │   /api/from-url  ← YouTube/URL  │
 │   /api/status    ← poll job     │
@@ -62,22 +63,14 @@ python3 server.py
 
 > ⚠️ **First run**: Demucs will automatically download the `htdemucs` model (~1 GB) and cache it. Subsequent runs are instant.
 
-### 3. Serve the frontend
+### 3. Open the app
 
-**Option A — Use the React artifact directly in Claude.ai**  
-The `frontend.jsx` file is already set up as a Claude artifact — just open it there.
+Once the server is running, just open **http://localhost:5050** in your browser.
+The Flask server serves the UI (`index.html`) directly — no separate frontend
+server or build step needed.
 
-**Option B — Vite dev server**  
-```bash
-npm create vite@latest stem-ui -- --template react
-cd stem-ui
-cp ../frontend.jsx src/App.jsx
-npm install && npm run dev
-# → http://localhost:5173
-```
-
-**Option C — Standalone HTML (no build step)**  
-Use the included `index.html` with a CDN React setup (see `index.html` below).
+> The `index.html` is fully self-contained (React is loaded from a CDN), so it
+> works offline-of-build: no `npm install`, no bundler.
 
 ---
 

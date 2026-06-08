@@ -32,17 +32,13 @@ echo "📦  Installing Python dependencies…"
 pip install demucs yt-dlp flask flask-cors --quiet
 echo "✅  Python packages installed"
 
-# ── 3. Node deps (optional, for local React dev) ─────────────
-if command -v node &>/dev/null && [ -f package.json ]; then
-  echo ""
-  echo "📦  Installing Node dependencies…"
-  npm install --silent
-  echo "✅  Node packages installed"
-fi
+# ── 3. (Frontend needs no build) ─────────────────────────────
+# The UI is a self-contained index.html served by Flask. Nothing to install.
 
 # ── 4. Start server ──────────────────────────────────────────
 echo ""
-echo "🚀  Starting API server on http://localhost:5050"
+echo "🚀  Starting server on http://localhost:5050"
+echo "    Open that URL in your browser to use the app."
 echo "    (Press Ctrl+C to stop)"
 echo ""
 python3 server.py
