@@ -307,6 +307,147 @@
       );
     }
 
+    function AudioPlayer({ stems, jobId }) {
+      const [playing, setPlaying] = useState(false);
+      const [mutedStems, setMutedStems] = useState({});
+      const [currentTime, setCurrentTime] = useState(0);
+      const [duration, setDuration] = useState(0);
+      const audiosRef = useRef({});
+      const playingRef = useRef(false);
+
+      useEffect(() => {
+        const names = Object.keys(stems);
+        if (!names.length) return;
+        const audios = {};
+        names.forEach(name => {
+          const audio = new Audio(`${API}/download/${jobId}/${name}`);
+          audio.preload = "metadata";
+          audios[name] = audio;
+        });
+        audiosRef.current = audios;
+        const primary = audios[names[0]];
+        if (primary) {
+          primary.addEventListener('loadedmetadata', () => setDuration(primary.duration));
+          primary.addEventListener('timeupdate', () => setCurrentTime(primary.currentTime));
+          primary.addEventListener('ended', () => {
+            playingRef.current = false;
+            setPlaying(false);
+            Object.values(audios).forEach(a => { a.currentTime = 0; });
+            setCurrentTime(0);
+          });
+        }
+        return () => { Object.values(audios).forEach(a => { a.pause(); a.src = ''; }); };
+      }, [jobId]);
+
+      const togglePlay = async () => {
+        const audios = Object.values(audiosRef.current);
+        if (playingRef.current) {
+          audios.forEach(a => a.pause());
+          playingRef.current = false;
+          setPlaying(false);
+        } else {
+          try {
+            await Promise.all(audios.map(a => a.play()));
+            playingRef.current = true;
+            setPlaying(true);
+          } catch {}
+        }
+      };
+
+      const toggleMute = (name) => {
+        const audio = audiosRef.current[name];
+        if (!audio) return;
+        audio.muted = !audio.muted;
+        setMutedStems(prev => ({ ...prev, [name]: audio.muted }));
+      };
+
+      const seek = (val) => {
+        const t = parseFloat(val);
+        Object.values(audiosRef.current).forEach(a => { a.currentTime = t; });
+        setCurrentTime(t);
+      };
+
+      const fmt = (t) => {
+        if (!t || isNaN(t)) return "0:00";
+        return `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+      };
+
+      return (
+        <div style={{
+          marginBottom: "24px",
+          padding: "20px 24px",
+          background: "rgba(255,255,255,0.03)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          borderRadius: "16px",
+        }}>
+          <div style={{ marginBottom: "14px" }}>
+            <input
+              type="range"
+              min={0}
+              max={duration || 100}
+              value={currentTime}
+              step={0.1}
+              onChange={e => seek(e.target.value)}
+              style={{ width: "100%", accentColor: "#e8a87c", cursor: "pointer" }}
+            />
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "rgba(255,255,255,0.3)", fontFamily: "monospace", marginTop: "4px" }}>
+              <span>{fmt(currentTime)}</span>
+              <span>{fmt(duration)}</span>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <button
+              onClick={togglePlay}
+              style={{
+                background: playing ? "rgba(124,232,168,0.12)" : "linear-gradient(135deg, #e8a87c, #d4845a)",
+                border: playing ? "1px solid rgba(124,232,168,0.25)" : "none",
+                borderRadius: "10px",
+                padding: "9px 20px",
+                color: playing ? "#7ce8a8" : "#1a0f08",
+                fontWeight: 700,
+                fontSize: "13px",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                letterSpacing: "0.03em",
+                whiteSpace: "nowrap",
+                fontFamily: "inherit",
+              }}
+            >
+              {playing ? "⏸ Pause" : "▶ Play All"}
+            </button>
+            {Object.keys(stems).map(name => {
+              const meta = STEM_META[name] || { label: name, icon: "🎵", color: "#e8a87c" };
+              const isMuted = !!mutedStems[name];
+              return (
+                <button
+                  key={name}
+                  onClick={() => toggleMute(name)}
+                  title={isMuted ? `Unmute ${meta.label}` : `Mute ${meta.label}`}
+                  style={{
+                    background: isMuted ? "rgba(255,255,255,0.03)" : `${meta.color}15`,
+                    border: `1px solid ${isMuted ? "rgba(255,255,255,0.08)" : meta.color + "40"}`,
+                    borderRadius: "8px",
+                    padding: "7px 13px",
+                    color: isMuted ? "rgba(255,255,255,0.2)" : meta.color,
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "5px",
+                    fontWeight: 500,
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {isMuted ? "🔇" : "🔊"} {meta.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
     function App() {
       const [jobId, setJobId] = useState(null);
       const [job, setJob] = useState(null);
@@ -529,6 +670,8 @@
                       ← New file
                     </button>
                   </div>
+
+                  <AudioPlayer stems={stems} jobId={jobId} />
 
                   <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                     {stemEntries.map(([name, info]) => (
