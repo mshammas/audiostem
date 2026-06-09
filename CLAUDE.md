@@ -42,7 +42,7 @@ Pipeline:  yt-dlp (if URL) → ffmpeg (→ 44.1kHz WAV) → Demucs (→ stems) �
 |------|---------|
 | `server.py` | Flask backend. Serves the UI at `/`, all `/api/*` routes, the pipeline, job state. |
 | `index.html` | Self-contained React UI (CDN React/Babel, inline styles). **This is the live frontend.** |
-| `setup_and_run.sh` | Installs Python deps, checks for ffmpeg, starts the server. |
+| `setup_and_run.sh` | One-command launcher: installs deps, checks ffmpeg, pre-caches the Demucs model, runs the server in the background, opens the browser, and kills the server on exit (Ctrl+C). Honours the `PORT` env var. |
 | `README.md` | User-facing docs and API reference. |
 | `.gitignore` | Excludes model cache, temp media, Python/Node artifacts. |
 
@@ -55,8 +55,10 @@ Pipeline:  yt-dlp (if URL) → ffmpeg (→ 44.1kHz WAV) → Demucs (→ stems) �
 - `GET  /api/status/<job_id>` — poll job progress/status/stems; for URL jobs also
   returns a `source` object (title, uploader, duration, thumbnail, `embed_url`)
   fetched via a yt-dlp metadata-only pass before the download
-- `GET  /api/download/<job_id>/<stem>` — download one stem as MP3
-- `POST /api/mix/<job_id>` — `{ stems: [...] }` → mix selected stems (ffmpeg `amix`) and download as one MP3
+- `GET  /api/download/<job_id>/<stem>` — download one stem as MP3, named
+  `<song> (vocals).mp3` (filename set via `Content-Disposition`; the UI reads it)
+- `POST /api/mix/<job_id>` — `{ stems: [...] }` → mix selected stems (ffmpeg `amix`,
+  `normalize=0`) and download as one MP3, named `<song> (full mix|minus vocals|…).mp3`
 - `DELETE /api/cleanup/<job_id>` — delete a job's files
 - `GET  /api/health` — liveness check
 
@@ -81,6 +83,9 @@ python3 server.py                            # → open http://localhost:5050
 First run downloads the Demucs model (~1 GB) and caches it under `~/.cache/torch/`.
 Open `http://localhost:5050` in a browser — Flask serves both the UI and the API,
 so there's nothing else to start.
+
+Or just run `./setup_and_run.sh`, which installs deps, pre-caches the model,
+starts the server, and opens the browser for you (Ctrl+C stops everything).
 
 ## Conventions & gotchas
 
