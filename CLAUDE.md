@@ -42,7 +42,7 @@ Pipeline:  yt-dlp (if URL) → ffmpeg (→ 44.1kHz WAV) → Demucs (→ stems) �
 |------|---------|
 | `server.py` | Flask backend. Serves the UI at `/`, all `/api/*` routes, the pipeline, job state. |
 | `index.html` | Self-contained React UI (CDN React/Babel, inline styles). **This is the live frontend.** |
-| `setup_and_run.sh` | One-command launcher: installs deps, checks ffmpeg, pre-caches the Demucs model, runs the server in the background, opens the browser, and kills the server on exit (Ctrl+C). Honours the `PORT` env var. |
+| `audiostem.sh` | One-command launcher: installs deps, checks ffmpeg, pre-caches the Demucs model, runs the server in the background, opens the browser, and kills the server on exit (Ctrl+C). Honours the `PORT` env var. |
 | `README.md` | User-facing docs and API reference. |
 | `.gitignore` | Excludes model cache, temp media, Python/Node artifacts. |
 
@@ -84,7 +84,7 @@ First run downloads the Demucs model (~1 GB) and caches it under `~/.cache/torch
 Open `http://localhost:5050` in a browser — Flask serves both the UI and the API,
 so there's nothing else to start.
 
-Or just run `./setup_and_run.sh`, which installs deps, pre-caches the model,
+Or just run `./audiostem.sh`, which installs deps, pre-caches the model,
 starts the server, and opens the browser for you (Ctrl+C stops everything).
 
 ## Conventions & gotchas
@@ -96,7 +96,7 @@ starts the server, and opens the browser for you (Ctrl+C stops everything).
   tracks). `DEVICE` is auto-detected at startup and passed to Demucs via `-d`; on
   `mps` the subprocess also gets `PYTORCH_ENABLE_MPS_FALLBACK=1` so unsupported
   ops fall back to CPU instead of crashing. The biggest first-run delay is the
-  one-time ~1 GB model download, which `setup_and_run.sh` now pre-caches. Keep
+  one-time ~1 GB model download, which `audiostem.sh` now pre-caches. Keep
   this in mind for any timeout / progress changes.
 - Demucs output lands at `WORK_DIR/<job_id>/demucs_out/<MODEL>/input/<stem>.mp3`;
   `server.py` copies these to a flat location before serving. If you change the
