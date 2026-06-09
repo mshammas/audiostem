@@ -87,6 +87,9 @@ Upload a media file.
 Submit a YouTube or direct URL.
 - Body: `{ "url": "https://..." }`
 - Response: `{ "job_id": "uuid" }`
+- Song details (title, uploader, duration, thumbnail, and a YouTube embed URL)
+  are fetched up front and exposed via the `source` field on the status response,
+  so the UI can show them — and embed the original — while separation runs.
 
 ### `GET /api/status/{job_id}`
 Poll job status.
@@ -96,6 +99,14 @@ Poll job status.
   "status": "separating",   // queued | downloading | converting | separating | done | error
   "progress": 62,           // 0–100
   "message": "Separating stems… 62%",
+  "source": {               // present for URL jobs once metadata is fetched
+    "title": "Artist - Song",
+    "uploader": "Artist",
+    "duration": 213,        // seconds
+    "thumbnail": "https://…",
+    "webpage_url": "https://…",
+    "embed_url": "https://www.youtube.com/embed/<id>"  // null if not YouTube
+  },
   "stems": {                // only present when status=done
     "vocals": { "filename": "vocals.mp3", "size_kb": 8200 },
     "drums":  { "filename": "drums.mp3",  "size_kb": 7100 },

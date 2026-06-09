@@ -227,6 +227,82 @@
       );
     }
 
+    function SourceCard({ source }) {
+      const [showEmbed, setShowEmbed] = useState(false);
+      if (!source) return null;
+      const { title, uploader, duration, thumbnail, webpage_url, embed_url } = source;
+
+      const fmtDur = (s) => {
+        if (s === null || s === undefined || isNaN(s)) return null;
+        const t = Math.floor(s);
+        const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = String(t % 60).padStart(2, "0");
+        return h ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`;
+      };
+      const meta = [uploader, fmtDur(duration)].filter(Boolean).join("  ·  ");
+
+      return (
+        <div style={{
+          marginBottom: "24px",
+          padding: "16px",
+          background: "rgba(255,255,255,0.03)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          borderRadius: "16px",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "14px", minWidth: 0 }}>
+            {thumbnail && !showEmbed && (
+              <div
+                onClick={() => embed_url && setShowEmbed(true)}
+                style={{ position: "relative", flexShrink: 0, lineHeight: 0, cursor: embed_url ? "pointer" : "default" }}
+              >
+                <img src={thumbnail} alt="" style={{ width: "128px", height: "72px", objectFit: "cover", borderRadius: "10px", display: "block" }} />
+                {embed_url && (
+                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <div style={{ width: "34px", height: "34px", borderRadius: "50%", background: "rgba(0,0,0,0.55)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", paddingLeft: "2px" }}>▶</div>
+                  </div>
+                )}
+              </div>
+            )}
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontFamily: "'Playfair Display', serif", fontSize: "17px", fontWeight: 600, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {title || "Original source"}
+              </div>
+              {meta && (
+                <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "13px", marginTop: "2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {meta}
+                </div>
+              )}
+              <div style={{ display: "flex", gap: "12px", marginTop: "8px", alignItems: "center" }}>
+                {embed_url && (
+                  <button
+                    onClick={() => setShowEmbed(v => !v)}
+                    style={{ background: "rgba(232,168,124,0.12)", border: "1px solid rgba(232,168,124,0.3)", borderRadius: "8px", padding: "5px 12px", color: "#e8a87c", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+                  >
+                    {showEmbed ? "✕ Hide original" : "▶ Play original"}
+                  </button>
+                )}
+                {webpage_url && (
+                  <a href={webpage_url} target="_blank" rel="noopener noreferrer" style={{ color: "rgba(255,255,255,0.4)", fontSize: "12px", textDecoration: "none" }}>
+                    View source ↗
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+          {embed_url && showEmbed && (
+            <div style={{ position: "relative", paddingTop: "56.25%", borderRadius: "12px", overflow: "hidden", background: "#000", marginTop: "14px" }}>
+              <iframe
+                src={embed_url}
+                title={title || "original"}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }}
+              />
+            </div>
+          )}
+        </div>
+      );
+    }
+
     function StemCard({ name, meta, sizeKb, jobId }) {
       const [downloading, setDownloading] = useState(false);
 
@@ -670,6 +746,7 @@
 
               {job && !isDone && (
                 <div style={{ animation: "fadeInUp 0.4s ease" }}>
+                  <SourceCard source={job.source} />
                   <div style={{
                     display: "flex", alignItems: "center", gap: "14px",
                     marginBottom: "28px",
@@ -734,6 +811,8 @@
                       ← New file
                     </button>
                   </div>
+
+                  <SourceCard source={job.source} />
 
                   <AudioPlayer stems={stems} jobId={jobId} />
 

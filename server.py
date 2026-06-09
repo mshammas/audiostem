@@ -125,6 +125,30 @@ def mix_descriptor(selected: list[str], available) -> str:
     return "minus " + ", ".join(excluded)
 
 
+def build_source_info(url: str, info: dict | None) -> dict | None:
+    """Pull displayable song details (+ a YouTube embed URL) out of yt-dlp info."""
+    if not info:
+        return None
+    vid = re.sub(r"[^A-Za-z0-9_-]", "", info.get("id") or "")  # sanitise before embedding
+    extractor = (info.get("extractor_key") or info.get("extractor") or "").lower()
+    embed_url = f"https://www.youtube.com/embed/{vid}" if ("youtube" in extractor and vid) else None
+
+    thumb = info.get("thumbnail")
+    if not thumb:
+        thumbs = info.get("thumbnails") or []
+        thumb = thumbs[-1].get("url") if thumbs else None
+
+    return {
+        "title": info.get("title"),
+        "uploader": info.get("uploader") or info.get("channel") or info.get("artist"),
+        "duration": info.get("duration"),
+        "thumbnail": thumb,
+        "webpage_url": info.get("webpage_url") or url,
+        "embed_url": embed_url,
+        "extractor": info.get("extractor_key") or info.get("extractor"),
+    }
+
+
 def cleanup_old_jobs(max_age_seconds=3600):
     """Remove jobs older than max_age_seconds."""
     now = time.time()
@@ -334,6 +358,24 @@ def from_url():
 
     def download_then_process():
         try:
+            # Quick metadata-only pass so the UI can show song details immediately,
+            # before the (slower) audio download even starts. Best-effort.
+            try:
+                with __import__("yt_dlp").YoutubeDL(
+                    {"quiet": True, "no_warnings": True, "skip_download": True}
+                ) as ydl:
+                    meta = ydl.extract_info(url, download=False)
+                source = build_source_info(url, meta)
+                if source:
+                    update_job(
+                        job_id,
+                        source=source,
+                        original_name=source.get("title") or "audio",
+                        message=f"Found “{source.get('title') or 'audio'}” — downloading…",
+                    )
+            except Exception as meta_exc:
+                logger.info("Metadata lookup failed for %s: %s", url, meta_exc)
+
             dl_path = jdir / "downloaded.%(ext)s"
             ydl_opts = {
                 "format": "bestaudio/best",
