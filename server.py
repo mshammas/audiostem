@@ -332,6 +332,54 @@ def download_stem(job_id: str, stem: str):
     return send_file(str(file_path), as_attachment=True, download_name=download_name)
 
 
+@app.route("/api/mix/<job_id>", methods=["POST"])
+def mix_stems(job_id: str):
+    """Mix down a chosen set of stems into a single MP3 and return it.
+
+    Body: { "stems": ["vocals", "drums", ...] }  (defaults to all stems).
+    Demucs stems sum back to the original, so we mix with amix normalize=0
+    to preserve the original level instead of attenuating by stem count.
+    """
+    with jobs_lock:
+        job = jobs.get(job_id)
+    if not job or job.get("status") != "done":
+        return jsonify({"error": "Job not ready"}), 404
+
+    available = job.get("stems", {})
+    data = request.get_json(force=True, silent=True) or {}
+    selected = data.get("stems") or list(available.keys())
+    # Keep only known stems, preserving the job's stem order for a stable name.
+    selected = [s for s in available if s in selected]
+    if not selected:
+        return jsonify({"error": "No valid stems selected"}), 400
+
+    jdir = job_dir(job_id)
+    inputs = []
+    for s in selected:
+        p = jdir / available[s]["filename"]
+        if not p.exists():
+            return jsonify({"error": f"Stem file missing: {s}"}), 404
+        inputs.append(p)
+
+    out_path = jdir / ("mix_" + "-".join(selected) + ".mp3")
+    cmd = ["ffmpeg", "-y"]
+    for p in inputs:
+        cmd += ["-i", str(p)]
+    if len(inputs) > 1:
+        cmd += ["-filter_complex", f"amix=inputs={len(inputs)}:normalize=0"]
+    cmd += ["-c:a", "libmp3lame", "-b:a", "320k", str(out_path)]
+
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        logger.error("Mixdown failed for job %s: %s", job_id, result.stderr[-500:])
+        return jsonify({"error": "Mixdown failed"}), 500
+
+    original = job.get("original_name", "audio").rsplit(".", 1)[0]
+    download_name = f"{original}_mix.mp3"
+    return send_file(str(out_path), as_attachment=True,
+                     download_name=download_name, mimetype="audio/mpeg")
+
+
 @app.route("/api/cleanup/<job_id>", methods=["DELETE"])
 def cleanup_job(job_id: str):
     shutil.rmtree(job_dir(job_id), ignore_errors=True)

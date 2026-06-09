@@ -6,7 +6,9 @@
       "Bash(git commit -m ' *)",
       "Bash(git push *)",
       "Bash(ssh -T git@github.com)",
-      "Bash(gh auth *)"
+      "Bash(gh auth *)",
+      "Bash(python3 -m py_compile server.py)",
+      "Bash(ffmpeg -hide_banner -filters)"
     ]
   }
 }

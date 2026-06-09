@@ -57,6 +57,7 @@ Pipeline:  yt-dlp (if URL) → ffmpeg (→ 44.1kHz WAV) → Demucs (→ stems) �
 - `POST /api/from-url` — `{ url }` (YouTube or direct media) → `{ job_id }`
 - `GET  /api/status/<job_id>` — poll job progress/status/stems
 - `GET  /api/download/<job_id>/<stem>` — download one stem as MP3
+- `POST /api/mix/<job_id>` — `{ stems: [...] }` → mix selected stems (ffmpeg `amix`) and download as one MP3
 - `DELETE /api/cleanup/<job_id>` — delete a job's files
 - `GET  /api/health` — liveness check
 

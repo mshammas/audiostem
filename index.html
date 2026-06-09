@@ -312,6 +312,7 @@
       const [mutedStems, setMutedStems] = useState({});
       const [currentTime, setCurrentTime] = useState(0);
       const [duration, setDuration] = useState(0);
+      const [mixing, setMixing] = useState(false);
       const audiosRef = useRef({});
       const playingRef = useRef(false);
 
@@ -365,6 +366,35 @@
         const t = parseFloat(val);
         Object.values(audiosRef.current).forEach(a => { a.currentTime = t; });
         setCurrentTime(t);
+      };
+
+      const enabledStems = Object.keys(stems).filter(name => !mutedStems[name]);
+
+      const downloadMix = async () => {
+        if (!enabledStems.length) {
+          alert("Enable at least one stem to mix down.");
+          return;
+        }
+        setMixing(true);
+        try {
+          const res = await fetch(`${API}/mix/${jobId}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ stems: enabledStems }),
+          });
+          if (!res.ok) throw new Error("Mixdown failed");
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `mix_${enabledStems.join("-")}.mp3`;
+          a.click();
+          URL.revokeObjectURL(url);
+        } catch (e) {
+          alert("Mixdown failed: " + e.message);
+        } finally {
+          setMixing(false);
+        }
       };
 
       const fmt = (t) => {
@@ -443,6 +473,29 @@
                 </button>
               );
             })}
+            <button
+              onClick={downloadMix}
+              disabled={mixing || !enabledStems.length}
+              title="Mix the enabled stems into one MP3 and download"
+              style={{
+                marginLeft: "auto",
+                background: "rgba(124,232,168,0.1)",
+                border: "1px solid rgba(124,232,168,0.3)",
+                borderRadius: "8px",
+                padding: "7px 14px",
+                color: "#7ce8a8",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: mixing || !enabledStems.length ? "not-allowed" : "pointer",
+                opacity: mixing || !enabledStems.length ? 0.5 : 1,
+                transition: "all 0.2s",
+                whiteSpace: "nowrap",
+                fontFamily: "inherit",
+                letterSpacing: "0.03em",
+              }}
+            >
+              {mixing ? "↓ Mixing…" : "↓ Download Mix"}
+            </button>
           </div>
         </div>
       );
