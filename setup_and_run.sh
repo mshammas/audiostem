@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
 #  Audio Stem Separator — Setup & Run Script
-#  Requirements: Python 3.9+, Node.js 18+, ffmpeg
+#  Requirements: Python 3.9+, ffmpeg
 # ============================================================
 
 set -e

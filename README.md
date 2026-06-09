@@ -48,7 +48,9 @@ Split any audio or video into isolated stems — **vocals, drums, bass, and othe
 
 - **Python 3.9+**
 - **ffmpeg** — `brew install ffmpeg` / `sudo apt install ffmpeg`
-- **Node.js 18+** (only needed to run the React dev server; not required for the API)
+
+> No Node.js / npm needed — the UI is a single `index.html` that loads React from
+> a CDN and is served by Flask.
 
 ### 2. Install & run the backend
 

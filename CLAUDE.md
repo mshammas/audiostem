@@ -27,10 +27,8 @@ Pipeline:  yt-dlp (if URL) → ffmpeg (→ 44.1kHz WAV) → Demucs (→ stems) �
 - The frontend is a **single self-contained `index.html`** (React + Babel loaded
   from a CDN, no build step). Flask serves it at `/`. The UI calls the API on the
   same origin (`window.location.origin + "/api"`), so there's only one server and
-  one port.
-- `frontend.jsx` is the original JSX source kept for reference / future Vite build.
-  The live UI is `index.html`; if you edit the UI, edit `index.html` (and keep
-  `frontend.jsx` in sync if you care about the source-of-truth copy).
+  one port. There is no build step and no separate source file — `index.html` is
+  the one and only frontend; edit it directly.
 - The backend is **job-based and async**. Each request creates a `job_id`; the
   frontend polls `/api/status/<job_id>` until status is `done` or `error`.
 - Jobs are tracked in an in-memory dict (`jobs`) guarded by a lock. There is **no
@@ -44,7 +42,6 @@ Pipeline:  yt-dlp (if URL) → ffmpeg (→ 44.1kHz WAV) → Demucs (→ stems) �
 |------|---------|
 | `server.py` | Flask backend. Serves the UI at `/`, all `/api/*` routes, the pipeline, job state. |
 | `index.html` | Self-contained React UI (CDN React/Babel, inline styles). **This is the live frontend.** |
-| `frontend.jsx` | Original JSX source of the UI (reference / future build). |
 | `setup_and_run.sh` | Installs Python deps, checks for ffmpeg, starts the server. |
 | `README.md` | User-facing docs and API reference. |
 | `.gitignore` | Excludes model cache, temp media, Python/Node artifacts. |
