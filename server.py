@@ -41,6 +41,27 @@ ALLOWED_EXTENSIONS = {
 
 STEMS = ["vocals", "drums", "bass", "other"]
 MODEL = "htdemucs"  # best 4-stem model; use htdemucs_6s for 6 stems (guitar, piano)
+PORT = int(os.environ.get("PORT", "5050"))  # overridable via the PORT env var
+
+
+def _detect_device() -> str:
+    """Pick the fastest torch backend available for Demucs.
+
+    Apple Silicon (mps) and NVIDIA (cuda) are ~5-15x faster than CPU.
+    Override with DEMUCS_DEVICE=cpu if a GPU backend misbehaves.
+    """
+    try:
+        import torch
+        if torch.backends.mps.is_available():
+            return "mps"
+        if torch.cuda.is_available():
+            return "cuda"
+    except Exception:
+        pass
+    return "cpu"
+
+
+DEVICE = os.environ.get("DEMUCS_DEVICE") or _detect_device()
 
 # In-memory job store  {job_id: {...}}
 jobs: dict[str, dict] = {}
@@ -121,19 +142,25 @@ def run_pipeline(job_id: str, source_path: Path, original_name: str):
         update_job(job_id, progress=25, message="Audio extracted, running stem separation…")
 
         # ── Step 2: Demucs ──────────────────────────────────────
-        update_job(job_id, status="separating", progress=30, message="Running Demucs model…")
+        update_job(job_id, status="separating", progress=30,
+                   message=f"Running Demucs on {DEVICE.upper()}…")
         out_dir = jdir / "demucs_out"
         cmd = [
             "python3", "-m", "demucs",
             "--name", MODEL,
+            "-d", DEVICE,        # mps / cuda / cpu — auto-detected at startup
             "--out", str(out_dir),
             "--mp3",             # output MP3 (requires ffmpeg)
             "--mp3-bitrate", "320",
             str(wav_path)
         ]
+        env = os.environ.copy()
+        if DEVICE == "mps":
+            # Let ops MPS doesn't implement fall back to CPU instead of crashing.
+            env.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
         # Stream output so we can update progress
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                text=True, bufsize=1)
+                                text=True, bufsize=1, env=env)
         for line in proc.stdout:
             line = line.strip()
             logger.info("[demucs] %s", line)
@@ -216,7 +243,7 @@ def favicon():
 
 @app.route("/api/health", methods=["GET"])
 def health():
-    return jsonify({"status": "ok", "model": MODEL})
+    return jsonify({"status": "ok", "model": MODEL, "device": DEVICE})
 
 
 @app.route("/api/upload", methods=["POST"])
@@ -390,7 +417,8 @@ def cleanup_job(job_id: str):
 
 if __name__ == "__main__":
     print("=" * 55)
-    print("  🎵 Audio Stemming API  —  http://localhost:5050")
+    print(f"  🎵 Audio Stemming API  —  http://localhost:{PORT}")
+    print(f"     model={MODEL}  ·  device={DEVICE}")
     print("=" * 55)
     # Periodic cleanup in background
     def _cleaner():
@@ -398,4 +426,4 @@ if __name__ == "__main__":
             time.sleep(1800)
             cleanup_old_jobs()
     threading.Thread(target=_cleaner, daemon=True).start()
-    app.run(host="0.0.0.0", port=5050, debug=False, threaded=True)
+    app.run(host="0.0.0.0", port=PORT, debug=False, threaded=True)

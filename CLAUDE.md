@@ -66,9 +66,11 @@ Status values: `queued → downloading → converting → separating → done` (
 ## Key config (top of server.py)
 
 - `MODEL = "htdemucs"` — switch to `"htdemucs_6s"` for 6 stems (adds guitar, piano).
+- `DEVICE` — auto-detected torch backend (`mps` on Apple Silicon, `cuda` on NVIDIA,
+  else `cpu`), passed to Demucs as `-d`. Force it with the `DEMUCS_DEVICE` env var.
 - `WORK_DIR` — temp file location.
 - `BASE_DIR` — where `index.html` is served from (the repo dir).
-- Port `5050` — set in `app.run(...)`.
+- `PORT` — defaults to `5050`; override with the `PORT` env var (read at startup).
 
 ## Running locally
 
@@ -83,8 +85,15 @@ so there's nothing else to start.
 
 ## Conventions & gotchas
 
-- **Demucs needs a GPU to be fast.** On CPU a track takes ~5–15 min; on GPU
-  ~30–90s. Keep this in mind for any timeout / progress changes.
+- **Separation speed is very hardware-dependent.** Old/weak CPUs take ~5–15 min
+  per track; NVIDIA `cuda` does ~30–90s. Apple Silicon is in between and closer
+  than you'd expect — on an M4, a 90s clip is ~31s on CPU vs ~24s on `mps`
+  (measured), i.e. `mps` is only ~1.3× faster (the gap widens slightly on longer
+  tracks). `DEVICE` is auto-detected at startup and passed to Demucs via `-d`; on
+  `mps` the subprocess also gets `PYTORCH_ENABLE_MPS_FALLBACK=1` so unsupported
+  ops fall back to CPU instead of crashing. The biggest first-run delay is the
+  one-time ~1 GB model download, which `setup_and_run.sh` now pre-caches. Keep
+  this in mind for any timeout / progress changes.
 - Demucs output lands at `WORK_DIR/<job_id>/demucs_out/<MODEL>/input/<stem>.mp3`;
   `server.py` copies these to a flat location before serving. If you change the
   Demucs invocation, update the glob that collects stems.
