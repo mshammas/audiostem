@@ -6,6 +6,7 @@ Uses: Demucs (htdemucs model) for stem separation
 """
 
 import os
+import re
 import json
 import uuid
 import time
@@ -92,6 +93,36 @@ def is_url(s: str) -> bool:
 def allowed_file(filename: str) -> bool:
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     return ext in ALLOWED_EXTENSIONS
+
+
+def song_base_name(original: str) -> str:
+    """Original song name, minus a known media extension, made filename-safe.
+
+    Only strips a trailing extension we recognise (so titles like
+    "Mr. Brightside" keep their dot), then drops characters that don't
+    belong in a filename while keeping spaces, parentheses, etc.
+    """
+    name = original or "audio"
+    if "." in name:
+        stem, ext = name.rsplit(".", 1)
+        if ext.lower() in ALLOWED_EXTENSIONS:
+            name = stem
+    name = re.sub(r'[\\/:*?"<>|\x00-\x1f]+', " ", name).strip()
+    return name or "audio"
+
+
+def mix_descriptor(selected: list[str], available) -> str:
+    """Human label for a mix: '(full mix)', '(vocals)', '(minus vocals)'…
+
+    Describe by whichever side is shorter — list what's kept when few stems
+    are kept, otherwise say what's removed.
+    """
+    excluded = [s for s in available if s not in selected]
+    if not excluded:
+        return "full mix"
+    if len(selected) <= len(excluded):
+        return ", ".join(selected)
+    return "minus " + ", ".join(excluded)
 
 
 def cleanup_old_jobs(max_age_seconds=3600):
@@ -354,8 +385,7 @@ def download_stem(job_id: str, stem: str):
     if not file_path.exists():
         return jsonify({"error": "File missing"}), 404
 
-    original = job.get("original_name", "audio").rsplit(".", 1)[0]
-    download_name = f"{original}_{stem}.mp3"
+    download_name = f"{song_base_name(job.get('original_name', 'audio'))} ({stem}).mp3"
     return send_file(str(file_path), as_attachment=True, download_name=download_name)
 
 
@@ -401,8 +431,8 @@ def mix_stems(job_id: str):
         logger.error("Mixdown failed for job %s: %s", job_id, result.stderr[-500:])
         return jsonify({"error": "Mixdown failed"}), 500
 
-    original = job.get("original_name", "audio").rsplit(".", 1)[0]
-    download_name = f"{original}_mix.mp3"
+    descriptor = mix_descriptor(selected, available)
+    download_name = f"{song_base_name(job.get('original_name', 'audio'))} ({descriptor}).mp3"
     return send_file(str(out_path), as_attachment=True,
                      download_name=download_name, mimetype="audio/mpeg")
 

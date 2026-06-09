@@ -28,6 +28,17 @@
 
     const API = (window.location.origin || "http://localhost:5050") + "/api";
 
+    // Pull the server-provided download filename out of Content-Disposition
+    // (it builds "<song> (vocals).mp3" etc.), falling back if not present.
+    function filenameFromResponse(res, fallback) {
+      const cd = res.headers.get("Content-Disposition") || "";
+      let m = cd.match(/filename\*=UTF-8''([^;]+)/i);
+      if (m) { try { return decodeURIComponent(m[1]); } catch { /* fall through */ } }
+      m = cd.match(/filename="?([^"]+?)"?(?:;|$)/i);
+      if (m) return m[1];
+      return fallback;
+    }
+
     const STEM_META = {
       vocals:  { label: "Vocals",  icon: "🎤", color: "#e8a87c", bg: "#2a1f18" },
       drums:   { label: "Drums",   icon: "🥁", color: "#7cb8e8", bg: "#162030" },
@@ -228,7 +239,7 @@
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");
           a.href = url;
-          a.download = `${name}.mp3`;
+          a.download = filenameFromResponse(res, `${name}.mp3`);
           a.click();
           URL.revokeObjectURL(url);
         } catch (e) {
@@ -387,7 +398,7 @@
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");
           a.href = url;
-          a.download = `mix_${enabledStems.join("-")}.mp3`;
+          a.download = filenameFromResponse(res, `mix_${enabledStems.join("-")}.mp3`);
           a.click();
           URL.revokeObjectURL(url);
         } catch (e) {

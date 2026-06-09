@@ -105,12 +105,15 @@ Poll job status.
 
 ### `GET /api/download/{job_id}/{stem}`
 Download a stem file (e.g. `/api/download/abc/vocals`).
+Saved as `<song name> (vocals).mp3`.
 
 ### `POST /api/mix/{job_id}`
 Mix a chosen set of stems into a single MP3 and download it.
 Body: `{ "stems": ["vocals", "drums"] }` (omit or send all stems for the full mix).
 Stems are summed at full level (`amix … normalize=0`), so all four reconstruct
-the original track.
+the original track. The download name reflects the selection:
+`<song name> (full mix).mp3`, `<song name> (minus vocals).mp3`, or
+`<song name> (vocals, drums).mp3`.
 
 ### `DELETE /api/cleanup/{job_id}`
 Delete job files immediately.
